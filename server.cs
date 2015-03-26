@@ -74,7 +74,7 @@ function saveXPMFile(%client,%filename) {
 			talk("ERROR: BRICKS ARE NOT THE SAME DATABLOCK");
 			return;
 		}
-		%targetObject.setName(getWord(%targetObject.getPosition(),0) @ "_" @ getWord(%targetObject.getPosition(),1) @ "_" @ getWord(%targetObject.getPosition(),2));
+		%targetObject.setName("_" @ getWord(%targetObject.getPosition(),0) @ "_" @ getWord(%targetObject.getPosition(),1) @ "_" @ getWord(%targetObject.getPosition(),2));
 		%used_datablock = %targetObject.getDatablock();
 		%static_z = getWord(%targetObject.getPosition(),2);
 
@@ -94,9 +94,9 @@ function saveXPMFile(%client,%filename) {
 		}
 
 		%bricks++;
-		%targetObject.oldColor = %targetObject.colorID;
-		%targetObject.schedule(10,setColor,0);
-		%targetObject.schedule(10+(10*%i),setColor,%targetObject.oldColor);
+		//%targetObject.oldColor = %targetObject.colorID;
+		//%targetObject.schedule(10,setColor,0);
+		//%targetObject.schedule(10+(10*%i),setColor,%targetObject.oldColor);
 	}
 
 	%increment_x = %used_datablock.brickSizeX/2;
@@ -111,7 +111,7 @@ function saveXPMFile(%client,%filename) {
 	for(%x=%lowest_x;%x<=%highest_x;%x+=%increment_x) {
 		%width = 0;
 		for(%y=%lowest_y;%y<=%highest_y;%y+=%increment_y) {
-			%brick = %x @ "_" @ %y @ "_" @ %static_z;
+			%brick = "_" @ %x @ "_" @ %y @ "_" @ %static_z;
 			%attempts++;
 			if(isObject(%brick)) {
 				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ getSubStr(%char_str,mFloor(%brick.colorID/strLen(%char_str)),1) @ getSubStr(%char_str,%brick.colorID % strLen(%char_str),1);
