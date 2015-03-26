@@ -49,9 +49,10 @@ function Player::getLookingAt(%this,%distance)
 
 // XPM functions
 function saveXPMFile(%client,%filename) {
-	$XPM::Linecount = 2;
+	$XPM::Linecount = 3;
 	$XPM::UsedColors = 0;
 	$XPM::Line[0] = "! XPM2";
+	$XPM::Line[2] = "zz c #000000";
 
 	%box_center = getBoxCenter(%client.XPMStartPos SPC %client.XPMEndPos);
 	%box_size = vectorSub(%client.XPMStartPos,%client.XPMEndPos);
@@ -129,6 +130,9 @@ function saveXPMFile(%client,%filename) {
 				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ getSubStr(%char_str,mFloor(%brick.colorID/strLen(%char_str)),1) @ getSubStr(%char_str,%brick.colorID % strLen(%char_str),1);
 				%found++;
 				%width++;
+			} else {
+				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ "zz";
+				%width++;
 			}
 			if(getRealTime() - %loop_start > 10000) {
 				talk("EMERGENCY END");
@@ -145,7 +149,7 @@ function saveXPMFile(%client,%filename) {
 
 	echo("Used" SPC %found SPC "bricks. (attempted" SPC %attempts SPC "times)");
 
-	$XPM::Line[1] = %width SPC %height SPC $XPM::UsedColors SPC 2;
+	$XPM::Line[1] = %width SPC %height SPC $XPM::UsedColors+1 SPC 2;
 	endXPMSave(%filename);
 }
 
