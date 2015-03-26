@@ -1,4 +1,4 @@
-$GlobalXPM::Version = "v0.2-1";
+$GlobalXPM::Version = "v0.3.1-1";
 
 // support functions
 function RGBToHex(%rgb) {
@@ -48,6 +48,41 @@ function Player::getLookingAt(%this,%distance)
 	}
 }
 
+function fxDTSBrick::getBoxSize(%this) {
+	%box = %this.getWorldBox();
+	%size_x = getWord(%box,3) - getWord(%box,0);
+	%size_y = getWord(%box,4) - getWord(%box,1);
+	%size_z = getWord(%box,5) - getWord(%box,2);
+
+	return %size_x SPC %size_y SPC %size_z;
+}
+
+function isBetween(%min,%max,%num) {
+	if(%num > %min && %num < %max) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+function fxDTSBrick::isPosInsideBrick(%this,%pos) {
+	%box = %this.getWorldBox();
+	%brick_x[min] = getWord(%box,0);
+	%brick_y[min] = getWord(%box,1);
+	%brick_z[min] = getWord(%box,2);
+	%brick_x[max] = getWord(%box,3);
+	%brick_y[max] = getWord(%box,4);
+	%brick_z[max] = getWord(%box,5);
+	if(isBetween(%brick_x[min],%brick_x[max],getWord(%pos,0))) {
+		if(isBetween(%brick_y[min],%brick_y[max],getWord(%pos,1))) {
+			if(isBetween(%brick_z[min],%brick_z[max],getWord(%pos,2))) {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 
 // XPM functions
 function saveXPMFile(%client) {
@@ -66,29 +101,24 @@ function saveXPMFile(%client) {
 
 	initContainerBoxSearch(%box_center,mAbs(getWord(%box_size,0)) SPC mAbs(getWord(%box_size,1)) SPC mAbs(getWord(%box_size,2)),$TypeMasks::FXBrickObjectType);
 	while((%targetObject = containerSearchNext()) != 0 && isObject(%targetObject)) {
-		$XPM::BrickSelection[%bricks] = %targetObject;
 		%color_used = 0;
-		if(%used_datablock != %targetObject.getDatablock() && %used_datablock !$= "") {
-			talk("ERROR: BRICKS ARE NOT THE SAME DATABLOCK");
-			return;
-		}
-		%targetObject.setName("_" @ getWord(%targetObject.getPosition(),0) @ "_" @ getWord(%targetObject.getPosition(),1) @ "_" @ getWord(%targetObject.getPosition(),2));
-		%used_datablock = %targetObject.getDatablock();
 		%static_z = getWord(%targetObject.getPosition(),2);
 
-		%x_pos = getWord(%targetObject.getPosition(),0);
-		%y_pos = getWord(%targetObject.getPosition(),1);
-		if(%x_pos > %highest_x) {
-			%highest_x = %x_pos;
+		%x_pos_h = getWord(%targetObject.getWorldBox(),3);
+		%y_pos_h = getWord(%targetObject.getWorldBox(),4);
+		%x_pos_l = getWord(%targetObject.getWorldBox(),0);
+		%y_pos_l = getWord(%targetObject.getWorldBox(),1);
+		if(%x_pos_h > %highest_x) {
+			%highest_x = %x_pos_h;
 		}
-		if(%x_pos < %lowest_x) {
-			%lowest_x = %x_pos;
+		if(%x_pos_l < %lowest_x) {
+			%lowest_x = %x_pos_l;
 		}
-		if(%y_pos > %highest_y) {
-			%highest_y = %y_pos;
+		if(%y_pos_h > %highest_y) {
+			%highest_y = %y_pos_h;
 		}
-		if(%y_pos < %lowest_y) {
-			%lowest_y = %y_pos;
+		if(%y_pos_l < %lowest_y) {
+			%lowest_y = %y_pos_l;
 		}
 
 		for(%i=0;%i<$XPM::UsedColors;%i++) {
@@ -102,9 +132,6 @@ function saveXPMFile(%client) {
 		}
 
 		%bricks++;
-		//%targetObject.oldColor = %targetObject.colorID;
-		//%targetObject.schedule(10,setColor,0);
-		//%targetObject.schedule(10+(10*%i),setColor,%targetObject.oldColor);
 	}
 
 	%char_str = "abcdefghijklmnopqrstuvwxyz";
@@ -114,28 +141,35 @@ function saveXPMFile(%client) {
 		$XPM::Linecount++;
 	}
 
-	%increment_x = %used_datablock.brickSizeX/2;
-	%increment_y = %used_datablock.brickSizeY/2;
+	%increment_x = %increment_y = 0.5;
 
-	%found = 0;
 	%attempts = 0;
 	%width = 0;
 	%height = 0;
 	%loop_start = getRealTime();
 
-	for(%x=%lowest_x;%x<=%highest_x;%x+=%increment_x) {
+	for(%x=%lowest_x;%x<%highest_x;%x+=%increment_x) {
 		%width = 0;
-		for(%y=%lowest_y;%y<=%highest_y;%y+=%increment_y) {
+		%found = 0;
+		for(%y=%lowest_y;%y<%highest_y;%y+=%increment_y) {
+			%found = 0;
 			%brick = "_" @ %x @ "_" @ %y @ "_" @ %static_z;
 			%attempts++;
-			if(isObject(%brick)) {
-				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ getSubStr(%char_str,mFloor(%brick.colorID/strLen(%char_str)),1) @ getSubStr(%char_str,%brick.colorID % strLen(%char_str),1);
-				%found++;
+
+			%pos = %x SPC %y SPC %static_z;
+			// 1x1 plate = 0.5 0.5 0.2
+			initContainerBoxSearch(vectorAdd(%pos,"0.25 0.25 0"),"0 0 0",$TypeMasks::FXBrickObjectType);
+			while((%targetObject = containerSearchNext()) != 0 && isObject(%targetObject)) {
+				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ getSubStr(%char_str,mFloor(%targetObject.colorID/strLen(%char_str)),1) @ getSubStr(%char_str,%targetObject.colorID % strLen(%char_str),1);
 				%width++;
-			} else {
+				%found = 1;
+				break;
+			}
+			if(!%found) {
 				$XPM::Line[$XPM::Linecount] = $XPM::Line[$XPM::Linecount] @ "zz";
 				%width++;
 			}
+
 			if(getRealTime() - %loop_start > 10000) {
 				talk("EMERGENCY END");
 				return;
@@ -176,7 +210,8 @@ function serverCmdSetXPMStart(%this) {
 		return;
 	}
 
-	%this.XPMStartPos = %target.getPosition();
+	//%this.XPMStartPos = %target.getPosition();
+	%this.XPMStartPos = getWords(%target.getWorldBox(),0,2);
 	messageClient(%this,'',"Set XPM saving start position to" SPC %this.XPMStartPos);
 }
 function serverCmdSetXPMEnd(%this) {
@@ -189,13 +224,25 @@ function serverCmdSetXPMEnd(%this) {
 		return;
 	}
 
-	%this.XPMEndPos = %target.getPosition();
+	//%this.XPMEndPos = %target.getPosition();
+	%this.XPMEndPos = getWords(%target.getWorldBox(),0,2);
 	messageClient(%this,'',"Set XPM saving end position to" SPC %this.XPMEndPos);
 }
 
 function endXPMSave(%client) {
 	for(%i=0;%i<$XPM::Linecount;%i++) {
-		commandToClient(%client,'ReceiveXPMLine',$XPM::Line[%i]);
+		// torque has a hard limit at 256
+		if(strLen($XPM::Line[%i]) > 255) {
+			%temp = strLen($XPM::Line[%i]);
+			%j = 0;
+			while(%j < %temp) {
+				commandToClient(%client,'ReceiveXPMMultiLine',getSubStr($XPM::Line[%i],%j,%j+255));
+				%j += 255;
+			}
+			commandToClient(%client,'ReceiveXPMMultiLineFinish');
+		} else {
+			commandToClient(%client,'ReceiveXPMLine',$XPM::Line[%i]);
+		}
 	}
 
 	commandToClient(%client,'ReceiveXPMSaveDoneRequest');
