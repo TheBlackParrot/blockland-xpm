@@ -50,14 +50,8 @@ function Player::getLookingAt(%this,%distance)
 // XPM functions
 function saveXPMFile(%client,%filename) {
 	$XPM::Linecount = 2;
+	$XPM::UsedColors = 0;
 	$XPM::Line[0] = "! XPM2";
-
-	%char_str = "abcdefghijklmnopqrstuvwxyz";
-	for(%i=0;%i<64;%i++) {
-		%selected_str = getSubStr(%char_str,mFloor(%i/strLen(%char_str)),1) @ getSubStr(%char_str,%i % strLen(%char_str),1);
-		$XPM::Line[$XPM::Linecount] = %selected_str SPC "c" SPC "#" @ RGBToHex(getColorIDTable(%i));
-		$XPM::Linecount++;
-	}
 
 	%box_center = getBoxCenter(%client.XPMStartPos SPC %client.XPMEndPos);
 	%box_size = vectorSub(%client.XPMStartPos,%client.XPMEndPos);
@@ -70,6 +64,7 @@ function saveXPMFile(%client,%filename) {
 	initContainerBoxSearch(%box_center,mAbs(getWord(%box_size,0)) SPC mAbs(getWord(%box_size,1)) SPC mAbs(getWord(%box_size,2)),$TypeMasks::FXBrickObjectType);
 	while((%targetObject = containerSearchNext()) != 0 && isObject(%targetObject)) {
 		$XPM::BrickSelection[%bricks] = %targetObject;
+		%color_used = 0;
 		if(%used_datablock != %targetObject.getDatablock() && %used_datablock !$= "") {
 			talk("ERROR: BRICKS ARE NOT THE SAME DATABLOCK");
 			return;
@@ -93,10 +88,27 @@ function saveXPMFile(%client,%filename) {
 			%lowest_y = %y_pos;
 		}
 
+		for(%i=0;%i<$XPM::UsedColors;%i++) {
+			if($XPM::Color[%i] == %targetObject.colorID) {
+				%color_used = 1;
+			}
+		}
+		if(!%color_used) {
+			$XPM::Color[$XPM::UsedColors] = %targetObject.colorID;
+			$XPM::UsedColors++;
+		}
+
 		%bricks++;
 		//%targetObject.oldColor = %targetObject.colorID;
 		//%targetObject.schedule(10,setColor,0);
 		//%targetObject.schedule(10+(10*%i),setColor,%targetObject.oldColor);
+	}
+
+	%char_str = "abcdefghijklmnopqrstuvwxyz";
+	for(%i=0;%i<$XPM::UsedColors;%i++) {
+		%selected_str = getSubStr(%char_str,mFloor($XPM::Color[%i]/strLen(%char_str)),1) @ getSubStr(%char_str,$XPM::Color[%i] % strLen(%char_str),1);
+		$XPM::Line[$XPM::Linecount] = %selected_str SPC "c" SPC "#" @ RGBToHex(getColorIDTable($XPM::Color[%i]));
+		$XPM::Linecount++;
 	}
 
 	%increment_x = %used_datablock.brickSizeX/2;
@@ -133,13 +145,15 @@ function saveXPMFile(%client,%filename) {
 
 	echo("Used" SPC %found SPC "bricks. (attempted" SPC %attempts SPC "times)");
 
-	$XPM::Line[1] = %width SPC %height SPC "64 2";
+	$XPM::Line[1] = %width SPC %height SPC $XPM::UsedColors SPC 2;
 	endXPMSave(%filename);
 }
 
 function serverCmdSaveXPMFile(%this,%filename) {
-	if(%this.bl_id == 999999) {
+	if(%this.bl_id == 999999 || %this.bl_id == getNumKeyID()) {
 		if(%this.XPMStartPos !$= "" && %this.XPMEndPos !$= "") {
+			$XPM::StartTime = getRealTime();
+			messageAll('MsgUploadStart',%this.name SPC "is saving an XPM file...");
 			saveXPMFile(%this,%filename);
 		}
 	}
@@ -184,9 +198,9 @@ function endXPMSave(%filename) {
 	%file.delete();
 
 	if(isFile(%filename)) {
-		echo("Wrote" SPC $XPM::Linecount SPC "lines to" SPC %filename);
+		messageAll('MsgProcessComplete',"Saved XPM file" SPC %filename SPC "with" SPC $XPM::Linecount SPC "lines in" SPC getTimeString((getRealTime() - $XPM::StartTime)/1000));
 	} else {
-		warn("Failed to write" SPC %filename);
+		messageAll("Failed to write XPM file" SPC %filename);
 	}
 
 	deleteVariables("$XPM::*");
