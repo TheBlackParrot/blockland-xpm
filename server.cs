@@ -1,3 +1,5 @@
+$GlobalXPM::Version = "v0.2-1";
+
 // support functions
 function RGBToHex(%rgb) {
 	%rgb = getWords(%rgb,0,2);
@@ -48,7 +50,7 @@ function Player::getLookingAt(%this,%distance)
 
 
 // XPM functions
-function saveXPMFile(%client,%filename) {
+function saveXPMFile(%client) {
 	$XPM::Linecount = 3;
 	$XPM::UsedColors = 0;
 	$XPM::Line[0] = "! XPM2";
@@ -150,15 +152,16 @@ function saveXPMFile(%client,%filename) {
 	echo("Used" SPC %found SPC "bricks. (attempted" SPC %attempts SPC "times)");
 
 	$XPM::Line[1] = %width SPC %height SPC $XPM::UsedColors+1 SPC 2;
-	endXPMSave(%filename);
+	endXPMSave(%client);
 }
 
 function serverCmdSaveXPMFile(%this,%filename) {
-	if(%this.bl_id == 999999 || %this.bl_id == getNumKeyID()) {
+	if(%this.supportsXPM) {
 		if(%this.XPMStartPos !$= "" && %this.XPMEndPos !$= "") {
 			$XPM::StartTime = getRealTime();
 			messageAll('MsgUploadStart',%this.name SPC "is saving an XPM file...");
-			saveXPMFile(%this,%filename);
+			//saveXPMFile(%this,%filename);
+			commandToClient(%this,'ReceiveXPMSaveRequest',%filename);
 		}
 	}
 }
@@ -190,22 +193,30 @@ function serverCmdSetXPMEnd(%this) {
 	messageClient(%this,'',"Set XPM saving end position to" SPC %this.XPMEndPos);
 }
 
-function endXPMSave(%filename) {
-	%file = new FileObject();
-	%file.openForWrite(%filename);
-
+function endXPMSave(%client) {
 	for(%i=0;%i<$XPM::Linecount;%i++) {
-		%file.writeLine($XPM::Line[%i]);
+		commandToClient(%client,'ReceiveXPMLine',$XPM::Line[%i]);
 	}
 
-	%file.close();
-	%file.delete();
-
-	if(isFile(%filename)) {
-		messageAll('MsgProcessComplete',"Saved XPM file" SPC %filename SPC "with" SPC $XPM::Linecount SPC "lines in" SPC getTimeString((getRealTime() - $XPM::StartTime)/1000));
-	} else {
-		messageAll("Failed to write XPM file" SPC %filename);
-	}
+	commandToClient(%client,'ReceiveXPMSaveDoneRequest');
+	messageAll('MsgProcessComplete',"Generated XPM file with" SPC $XPM::Linecount SPC "lines in" SPC getTimeString((getRealTime() - $XPM::StartTime)/1000));
 
 	deleteVariables("$XPM::*");
+}
+
+package XPMSupportPackage {
+	function GameConnection::autoAdminCheck(%this) {
+		commandToClient(%this,'SendXPMSupportHandshake');
+		return parent::autoAdminCheck(%this);
+	}
+};
+activatePackage(XPMSupportPackage);
+
+function serverCmdOnReceiveXPMSupportHandshake(%this) {
+	%this.supportsXPM = 1;
+	messageClient(%this,'',"\c6The server is running\c3" SPC $GlobalXPM::Version SPC "\c6of the \c3XPM Support modification.");
+}
+
+function serverCmdOnReceiveSaveRequestAccepted(%this) {
+	saveXPMFile(%this);
 }
