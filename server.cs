@@ -1,4 +1,4 @@
-$GlobalXPM::Version = "v0.3.3-1";
+$GlobalXPM::Version = "v0.3.4-1";
 
 // support functions
 function RGBToHex(%rgb) {
@@ -288,4 +288,15 @@ function serverCmdOnReceiveXPMSupportHandshake(%this) {
 
 function serverCmdOnReceiveSaveRequestAccepted(%this) {
 	saveXPMFile(%this);
+}
+
+function serverCmdXPMHelp(%this) {
+	if(!%this.supportsXPM) {
+		messageClient(%this,'MsgUploadStart',"IT APPEARS YOU DO NOT HAVE SYSTEM_XPMSUPPORT.");
+		messageClient(%this,'',"DOWNLOAD IT <a:forum.blockland.us/index.php?topic=276821.0>HERE</a>");
+		return;
+	}
+	messageClient(%this,'',"\c3/setXPMStart \c7-- \c6Sets the start of the export area.");
+	messageClient(%this,'',"\c3/setXPMEnd \c7-- \c6Sets the end of the export area.");
+	messageClient(%this,'',"\c3/saveXPMFile \c5[filename] \c7-- \c6Exports the selected area to an XPM file. \c7(e.g. config/client/xpm/picture.xpm)");
 }
