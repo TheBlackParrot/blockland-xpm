@@ -1,4 +1,4 @@
-$GlobalXPM::Version = "v0.3.2-1";
+$GlobalXPM::Version = "v0.3.3-1";
 
 // support functions
 function RGBToHex(%rgb) {
@@ -63,6 +63,21 @@ function isBetween(%min,%max,%num) {
 	} else {
 		return 0;
 	}
+}
+
+function mRound(%num,%places) {
+	if(%places <= 0 || %places $= "") {
+		%places = 0;
+	}
+	%factor = mPow(10,%places);
+
+	%num = %num*%factor;
+	%dec = %num - mFloor(%num);
+
+	if(%dec >= 0.5) {
+		return mCeil(%num)/%factor;
+	}
+	return mFloor(%num)/%factor;
 }
 
 function fxDTSBrick::isPosInsideBrick(%this,%pos) {
@@ -218,7 +233,7 @@ function serverCmdSetXPMStart(%this) {
 	}
 
 	//%this.XPMStartPos = %target.getPosition();
-	%this.XPMStartPos = getWords(%target.getWorldBox(),0,2);
+	%this.XPMStartPos = mRound(getWord(%target.getWorldBox(),0),1) SPC mRound(getWord(%target.getWorldBox(),1),1) SPC mRound(getWord(%target.getWorldBox(),2),1);
 	messageClient(%this,'',"Set XPM saving start position to" SPC %this.XPMStartPos);
 }
 function serverCmdSetXPMEnd(%this) {
@@ -232,7 +247,7 @@ function serverCmdSetXPMEnd(%this) {
 	}
 
 	//%this.XPMEndPos = %target.getPosition();
-	%this.XPMEndPos = getWords(%target.getWorldBox(),0,2);
+	%this.XPMEndPos = mRound(getWord(%target.getWorldBox(),0),1) SPC mRound(getWord(%target.getWorldBox(),1),1) SPC mRound(getWord(%target.getWorldBox(),2),1);
 	messageClient(%this,'',"Set XPM saving end position to" SPC %this.XPMEndPos);
 }
 
